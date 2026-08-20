@@ -3,9 +3,17 @@ exports.handler = async (event) => {
         const { data } = JSON.parse(event.body);
         const apiKey = process.env.ANTHROPIC_API_KEY;
 
+        if (!apiKey) {
+            throw new Error('Chybí ANTHROPIC_API_KEY v Netlify environment variables');
+        }
+
         const res = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
             body: JSON.stringify({
                 model: 'claude-sonnet-4-6',
                 max_tokens: 5000,
@@ -40,15 +48,39 @@ Atraktivní text pro LinkedIn (300-400 slov).
 DATA:
 ${data}`
                 }],
-                tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+                tools: [{
+                    type: 'web_search_20250305',
+                    name: 'web_search'
+                }]
             })
         });
 
         const result = await res.json();
-        const analysis = result.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
 
-        return { statusCode: 200, body: JSON.stringify({ analysis }) };
+        if (!res.ok) {
+            console.error(result);
+            throw new Error(result.error?.message || 'Chyba při volání Anthropic API');
+        }
+
+        const analysis = result.content
+            .filter(b => b.type === 'text')
+            .map(b => b.text)
+            .join('\n');
+
+        return {
+            statusCode: 200,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ analysis })
+        };
+
     } catch (e) {
-        return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+        console.error(e);
+
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: e.message })
+        };
     }
 };
