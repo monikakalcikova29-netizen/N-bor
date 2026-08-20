@@ -47,7 +47,6 @@
     <div class="container">
         <div class="header">
             <h1>💼 Nábor.ai</h1>
-            <p>Dynamické naseptávače z AI pro jakoukoli pozici</p>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
         <div class="content" id="formView"></div>
@@ -186,20 +185,30 @@
             try {
                 const response = await fetch('/.netlify/functions/generate-suggestions', {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         pozice: formData.pozice,
                         pole: fieldLabel
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
                 const data = await response.json();
-                if (data.suggestions) {
+                if (data.suggestions && data.suggestions.length > 0) {
                     const suggestionsDiv = document.getElementById(`suggestions-${fieldKey}`);
                     suggestionsDiv.innerHTML = data.suggestions
                         .map(s => `<button type="button" class="suggestion-btn" onclick="setSuggestion('${fieldKey}', '${s.replace(/'/g, "\\'")}')">${s}</button>`)
                         .join('');
+                } else {
+                    alert('Nepodarilo se vygenerovat navrhy. Zkus to znovu.');
                 }
             } catch (error) {
+                console.error('Chyba pri nacitani navrhu:', error);
                 alert(`Chyba: ${error.message}`);
             } finally {
                 btn.disabled = false;
