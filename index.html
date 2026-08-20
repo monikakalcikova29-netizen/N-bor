@@ -56,6 +56,7 @@
     </div>
 
     <script>
+        const apiKey = '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';
         const languages = ['Čeština', 'Angličtina', 'Němčina', 'Francouzština', 'Španělština'];
 
         const categories = [
@@ -135,7 +136,7 @@
                 } else if (field.type === 'textarea') {
                     html += `<textarea id="${field.key}" placeholder="Vyplň...">${formData[field.key]}</textarea>`;
                     if (field.gen && formData.pozice) {
-                        html += `<button type="button" class="load-btn" onclick="loadSuggestions('${field.key}', '${field.label.replace(/'/g, "\\'")}')"">💡 Vygenerovat</button>`;
+                        html += `<button type="button" class="load-btn" onclick="loadSuggestions('${field.key}', '${field.label.replace(/'/g, "\\'")}')" ${!apiKey ? 'disabled' : ''}>💡 Vygenerovat</button>`;
                         html += `<div id="suggestions-${field.key}" class="suggestions"></div>`;
                     }
                 } else if (field.type === 'languages') {
@@ -179,21 +180,41 @@
             btn.textContent = 'Načítám...';
 
             try {
-                const response = await fetch('/.netlify/functions/generate-suggestions', {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
                     body: JSON.stringify({
-                        pozice: formData.pozice,
-                        pole: fieldLabel
+                        model: 'claude-sonnet-4-6',
+                        max_tokens: 500,
+                        messages: [{
+                            role: 'user',
+                            content: `Pro pozici "${formData.pozice}" v České republice vygeneruj POUZE 3 konkrétní návrhy do pole "${fieldLabel}". 
+                            
+Vrať POUZE seznam - každý návrh na novém řádku, bez čísel, bez "-", jen samotný text.
+
+Příklad:
+Návrh 1
+Návrh 2
+Návrh 3`
+                        }]
                     })
                 });
 
                 if (!response.ok) throw new Error(`Error: ${response.status}`);
 
                 const data = await response.json();
-                if (data.suggestions && data.suggestions.length > 0) {
+                if (data.content && data.content[0]) {
+                    const suggestions = data.content[0].text
+                        .split('\n')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0)
+                        .slice(0, 3);
+
                     const div = document.getElementById(`suggestions-${fieldKey}`);
-                    div.innerHTML = data.suggestions
+                    div.innerHTML = suggestions
                         .map(s => `<button type="button" class="suggestion-btn" onclick="setSuggestion('${fieldKey}', '${s.replace(/'/g, "\\'")}')">${s}</button>`)
                         .join('');
                 }
@@ -234,15 +255,54 @@
                 .join('\n');
 
             try {
-                const res = await fetch('/.netlify/functions/generate-analysis', {
+                const res = await fetch('https://api.anthropic.com/v1/messages', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data })
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-6',
+                        max_tokens: 5000,
+                        messages: [{
+                            role: 'user',
+                            content: `Jsi expert na HR a nábor v České republice. Na základě těchto dat vytvoř 5 věcí:
+
+## 1. JOB DESCRIPTION
+Detailní interní popis pozice (200-300 slov).
+
+## 2. INZERÁT
+Atraktivní text pro LinkedIn (300-400 slov).
+
+## 3. SROVNĚNÍ MEZD
+- Zadané rozpětí vs reálné platy v ČR
+- Je to competitive?
+- Doporučení
+
+## 4. REALITA TRHU
+- Počet kandidátů
+- Obtížnost náboru
+- Čas na obsazení
+- Top kanály
+- Expectations kandidátů
+
+## 5. HR STRATEGIE
+- Rizika
+- Red flags
+- Tipy na hledání
+- Retention
+
+DATA:
+${data}`
+                        }],
+                        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+                    })
                 });
 
                 if (!res.ok) throw new Error(`Chyba: ${res.status}`);
                 const json = await res.json();
-                document.getElementById('output').textContent = json.analysis || 'Chyba';
+                const text = json.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+                document.getElementById('output').textContent = text || 'Chyba';
             } catch (e) {
                 document.getElementById('output').textContent = `❌ Chyba: ${e.message}`;
             }
