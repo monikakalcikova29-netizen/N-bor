@@ -1,100 +1,254 @@
-// Umístit do: /netlify/functions/generate-suggestions.js
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nábor.ai</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 750px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; padding: 24px; text-align: center; }
+        .header h1 { font-size: 28px; margin-bottom: 4px; font-weight: 600; }
+        .content { padding: 32px 24px; max-height: 800px; overflow-y: auto; }
+        .category-title { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 8px; }
+        .category-info { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; font-weight: 500; color: #1f2937; margin-bottom: 6px; }
+        input[type="text"], textarea { width: 100%; padding: 10px 12px; border: 0.5px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; background: white; }
+        input:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        textarea { resize: vertical; min-height: 70px; }
+        .suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .suggestion-btn { padding: 6px 10px; border: 0.5px solid #2563eb; background: #eff6ff; color: #2563eb; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; }
+        .suggestion-btn:hover { background: #dbeafe; }
+        .load-btn { padding: 8px 12px; border: 0.5px solid #2563eb; background: #eff6ff; color: #2563eb; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; margin-top: 8px; }
+        .load-btn:hover { background: #dbeafe; }
+        .load-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .language-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+        .language-btn { padding: 6px 12px; border: 0.5px solid #d1d5db; background: white; color: #1f2937; cursor: pointer; font-size: 12px; font-weight: 500; border-radius: 6px; }
+        .language-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+        .buttons { display: flex; gap: 12px; justify-content: space-between; margin-top: 32px; padding-top: 24px; border-top: 0.5px solid #e5e7eb; }
+        button { padding: 10px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .btn-secondary { background: #f3f4f6; color: #1f2937; border: 0.5px solid #d1d5db; }
+        .btn-secondary:hover:not(:disabled) { background: #e5e7eb; }
+        .btn-primary { background: #2563eb; color: white; flex: 1; }
+        .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+        .progress-bar { height: 4px; background: #e5e7eb; }
+        .progress-fill { height: 100%; background: #2563eb; transition: width 0.3s; }
+        .output-content { background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 6px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; color: #1f2937; white-space: pre-wrap; word-wrap: break-word; max-height: 600px; overflow-y: auto; }
+        .loading { text-align: center; padding: 40px; color: #6b7280; }
+        .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💼 Nábor.ai</h1>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+        <div class="content" id="formView"></div>
+        <div class="content hidden" id="outputView">
+            <button class="btn-secondary" onclick="goBack()">← Zpět</button>
+            <div class="output-content" id="output"></div>
+        </div>
+    </div>
 
-exports.handler = async (event) => {
-    console.log('Function called with:', event.body);
-    
-    if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ error: 'Method Not Allowed' })
-        };
-    }
+    <script>
+        const languages = ['Čeština', 'Angličtina', 'Němčina', 'Francouzština', 'Španělština'];
 
-    try {
-        let body = {};
-        if (event.body) {
-            body = JSON.parse(event.body);
-        }
-
-        const { pozice, pole } = body;
-        console.log('Pozice:', pozice, 'Pole:', pole);
-
-        if (!pozice || !pole) {
-            return {
-                statusCode: 400,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ error: 'Chybí pozice nebo pole' })
-            };
-        }
-
-        const apiKey = process.env.ANTHROPIC_API_KEY;
-        console.log('API Key available:', !!apiKey);
-        
-        if (!apiKey) {
-            console.error('ANTHROPIC_API_KEY not set');
-            return {
-                statusCode: 500,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ error: 'API key not configured' })
-            };
-        }
-
-        const requestBody = {
-            model: 'claude-sonnet-4-6',
-            max_tokens: 500,
-            messages: [{
-                role: 'user',
-                content: `Pro pozici "${pozice}" v České republice vygeneruj POUZE 3 konkrétní návrhy do pole "${pole}". 
-                
-Vrať POUZE seznam - každý návrh na novém řádku, bez čísel, bez "- ", jen samotný text.
-
-Příklad formátu:
-Návrh číslo 1
-Návrh číslo 2
-Návrh číslo 3`
-            }]
-        };
-
-        console.log('Calling Claude API...');
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey
+        const categories = [
+            {
+                name: 'Základní info',
+                fields: [
+                    { key: 'pozice', label: 'Pozice', type: 'text' },
+                    { key: 'oddeleni', label: 'Oddělení', type: 'text' },
+                    { key: 'nadrizeny', label: 'Nadřízený', type: 'text' },
+                    { key: 'pocet_pozic', label: 'Počet pozic', type: 'text' }
+                ]
             },
-            body: JSON.stringify(requestBody)
+            {
+                name: 'Popis pozice',
+                fields: [
+                    { key: 'duvod_otevreni', label: 'Důvod otevření', type: 'textarea', gen: true },
+                    { key: 'napl_prace', label: 'Náplň práce', type: 'textarea', gen: true },
+                    { key: 'klicove_vystupy', label: 'Klíčové výstupy', type: 'textarea', gen: true },
+                    { key: 's_kym_bude', label: 'S kým bude pracovat', type: 'textarea', gen: true },
+                    { key: 'systemy_nastroje', label: 'Systémy a nástroje', type: 'textarea', gen: true }
+                ]
+            },
+            {
+                name: 'Požadavky',
+                fields: [
+                    { key: 'seniorita', label: 'Seniorita', type: 'text' },
+                    { key: 'must_have', label: 'Must-have', type: 'textarea', gen: true },
+                    { key: 'nice_to_have', label: 'Nice-to-have', type: 'textarea', gen: true },
+                    { key: 'vzdelani', label: 'Vzdělání', type: 'textarea' },
+                    { key: 'jazyky', label: 'Jazyky', type: 'languages' }
+                ]
+            },
+            {
+                name: 'Pracovní podmínky',
+                fields: [
+                    { key: 'pracovni_rezim', label: 'Pracovní režim', type: 'text' },
+                    { key: 'lokalita', label: 'Lokalita', type: 'text' },
+                    { key: 'mzdove_rozpeti', label: 'Mzdové rozpětí (Kč)', type: 'text' },
+                    { key: 'nastup', label: 'Nástup', type: 'text' }
+                ]
+            },
+            {
+                name: 'Ostatní',
+                fields: [
+                    { key: 'osobnostni_fit', label: 'Osobnostní fit', type: 'textarea', gen: true },
+                    { key: 'co_nebude_fungovat', label: 'Co nebude fungovat', type: 'textarea', gen: true },
+                    { key: 'kpi', label: 'KPI / úspěch', type: 'textarea' },
+                    { key: 'priority_3m', label: 'Priority 3 měsíců', type: 'textarea' },
+                    { key: 'benefity', label: 'Benefity', type: 'textarea' },
+                    { key: 'hiring_proces', label: 'Hiring proces', type: 'textarea' },
+                    { key: 'kanaly_inzerce', label: 'Kanály inzerce', type: 'text' }
+                ]
+            }
+        ];
+
+        let currentStep = 0;
+        let formData = {};
+
+        categories.forEach(cat => {
+            cat.fields.forEach(field => {
+                formData[field.key] = field.type === 'languages' ? [] : '';
+            });
         });
 
-        console.log('API Response status:', response.status);
-        const data = await response.json();
-        console.log('API Response:', JSON.stringify(data).substring(0, 200));
+        function render() {
+            const cat = categories[currentStep];
+            const progress = Math.round((currentStep + 1) / categories.length * 100);
+            document.getElementById('progress').style.width = progress + '%';
 
-        if (!response.ok) {
-            console.error('Claude API error:', response.status, data);
-            throw new Error(`Claude API error: ${response.status} - ${JSON.stringify(data)}`);
+            let html = `<div class="category-title">📋 ${cat.name}</div><div class="category-info">Kategorie ${currentStep + 1}/${categories.length}</div>`;
+
+            cat.fields.forEach(field => {
+                html += `<div class="form-group"><label class="form-label">${field.label}</label>`;
+
+                if (field.type === 'text') {
+                    html += `<input type="text" id="${field.key}" value="${formData[field.key]}" placeholder="Vyplň...">`;
+                } else if (field.type === 'textarea') {
+                    html += `<textarea id="${field.key}" placeholder="Vyplň...">${formData[field.key]}</textarea>`;
+                    if (field.gen && formData.pozice) {
+                        html += `<button type="button" class="load-btn" onclick="loadSuggestions('${field.key}', '${field.label.replace(/'/g, "\\'")}')"">💡 Vygenerovat</button>`;
+                        html += `<div id="suggestions-${field.key}" class="suggestions"></div>`;
+                    }
+                } else if (field.type === 'languages') {
+                    html += `<div class="language-buttons">`;
+                    languages.forEach(lang => {
+                        const active = formData.jazyky.includes(lang) ? 'active' : '';
+                        html += `<button type="button" class="language-btn ${active}" onclick="toggleLang('${lang}')">${lang}</button>`;
+                    });
+                    html += `</div>`;
+                }
+                html += `</div>`;
+            });
+
+            html += `<div class="buttons">
+                        <button class="btn-secondary" onclick="prev()" ${currentStep === 0 ? 'disabled' : ''}>← Zpět</button>
+                        <button class="btn-primary" onclick="${currentStep < categories.length - 1 ? 'next()' : 'generate()'}">
+                            ${currentStep < categories.length - 1 ? 'Dál →' : 'Vytvořit analýzu 🚀'}
+                        </button>
+                    </div>`;
+
+            document.getElementById('formView').innerHTML = html;
+
+            cat.fields.forEach(field => {
+                const el = document.getElementById(field.key);
+                if (el && field.type === 'text') {
+                    el.addEventListener('input', () => formData[field.key] = el.value);
+                } else if (el && field.type === 'textarea') {
+                    el.addEventListener('input', () => formData[field.key] = el.value);
+                }
+            });
         }
 
-        const textContent = data.content[0]?.text || '';
-        const suggestions = textContent
-            .split('\n')
-            .map(s => s.trim())
-            .filter(s => s.length > 0)
-            .slice(0, 3);
+        async function loadSuggestions(fieldKey, fieldLabel) {
+            if (!formData.pozice) {
+                alert('Vyplň Pozici!');
+                return;
+            }
 
-        console.log('Suggestions generated:', suggestions);
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Načítám...';
 
-        return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ suggestions })
-        };
-    } catch (error) {
-        console.error('Function error:', error.message);
-        return {
-            statusCode: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ error: error.message })
-        };
-    }
-};
+            try {
+                const response = await fetch('/.netlify/functions/generate-suggestions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pozice: formData.pozice,
+                        pole: fieldLabel
+                    })
+                });
+
+                if (!response.ok) throw new Error(`Error: ${response.status}`);
+
+                const data = await response.json();
+                if (data.suggestions && data.suggestions.length > 0) {
+                    const div = document.getElementById(`suggestions-${fieldKey}`);
+                    div.innerHTML = data.suggestions
+                        .map(s => `<button type="button" class="suggestion-btn" onclick="setSuggestion('${fieldKey}', '${s.replace(/'/g, "\\'")}')">${s}</button>`)
+                        .join('');
+                }
+            } catch (error) {
+                alert(`Chyba: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💡 Vygenerovat';
+            }
+        }
+
+        function setSuggestion(key, value) {
+            formData[key] = value;
+            document.getElementById(key).value = value;
+        }
+
+        function toggleLang(lang) {
+            formData.jazyky = formData.jazyky.includes(lang) ? formData.jazyky.filter(l => l !== lang) : [...formData.jazyky, lang];
+            render();
+        }
+
+        function next() { if (currentStep < categories.length - 1) currentStep++; render(); }
+        function prev() { if (currentStep > 0) currentStep--; render(); }
+        function goBack() { document.getElementById('formView').classList.remove('hidden'); document.getElementById('outputView').classList.add('hidden'); }
+
+        async function generate() {
+            document.getElementById('formView').classList.add('hidden');
+            document.getElementById('outputView').classList.remove('hidden');
+            document.getElementById('output').innerHTML = '<div class="loading"><div class="spinner"></div><p>Generuji analýzu...</p></div>';
+
+            const data = Object.entries(formData)
+                .map(([k, v]) => {
+                    const label = categories.flatMap(c => c.fields).find(f => f.key === k)?.label || k;
+                    const value = Array.isArray(v) ? v.join(', ') : v;
+                    return value ? `${label}: ${value}` : '';
+                })
+                .filter(Boolean)
+                .join('\n');
+
+            try {
+                const res = await fetch('/.netlify/functions/generate-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data })
+                });
+
+                if (!res.ok) throw new Error(`Chyba: ${res.status}`);
+                const json = await res.json();
+                document.getElementById('output').textContent = json.analysis || 'Chyba';
+            } catch (e) {
+                document.getElementById('output').textContent = `❌ Chyba: ${e.message}`;
+            }
+        }
+
+        render();
+    </script>
+</body>
+</html>
