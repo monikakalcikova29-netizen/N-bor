@@ -3,9 +3,17 @@ exports.handler = async (event) => {
         const { pozice, pole } = JSON.parse(event.body);
         const apiKey = process.env.ANTHROPIC_API_KEY;
 
+        if (!apiKey) {
+            throw new Error('Chybí ANTHROPIC_API_KEY');
+        }
+
         const res = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
             body: JSON.stringify({
                 model: 'claude-sonnet-4-6',
                 max_tokens: 500,
@@ -17,10 +25,30 @@ exports.handler = async (event) => {
         });
 
         const data = await res.json();
-        const suggestions = data.content[0]?.text.split('\n').map(s => s.trim()).filter(s => s.length > 0).slice(0, 3) || [];
 
-        return { statusCode: 200, body: JSON.stringify({ suggestions }) };
+        if (!res.ok) {
+            console.error(data);
+            throw new Error(data.error?.message || 'API error');
+        }
+
+        const suggestions = data.content[0]?.text
+            .split('\n')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+            .slice(0, 3) || [];
+
+        return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ suggestions })
+        };
+
     } catch (e) {
-        return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+        console.error(e);
+        return {
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: e.message })
+        };
     }
 };
