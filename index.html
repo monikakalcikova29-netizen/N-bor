@@ -10,20 +10,20 @@
         .container { max-width: 750px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
         .header { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); color: white; padding: 24px; text-align: center; }
         .header h1 { font-size: 28px; margin-bottom: 4px; font-weight: 600; }
-        .content { padding: 32px 24px; max-height: 700px; overflow-y: auto; }
+        .content { padding: 32px 24px; max-height: 800px; overflow-y: auto; }
         .category-title { font-size: 20px; font-weight: 600; color: #1f2937; margin-bottom: 8px; }
         .category-info { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
         .form-group { margin-bottom: 20px; }
         .form-label { display: block; font-size: 13px; font-weight: 500; color: #1f2937; margin-bottom: 6px; }
         input[type="text"], textarea { width: 100%; padding: 10px 12px; border: 0.5px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; background: white; }
-        input[type="text"]:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        input:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
         textarea { resize: vertical; min-height: 70px; }
         .suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
         .suggestion-btn { padding: 6px 10px; border: 0.5px solid #2563eb; background: #eff6ff; color: #2563eb; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; }
         .suggestion-btn:hover { background: #dbeafe; }
-        .load-suggestions-btn { padding: 8px 12px; border: 0.5px solid #2563eb; background: #eff6ff; color: #2563eb; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; margin-top: 8px; }
-        .load-suggestions-btn:hover { background: #dbeafe; }
-        .load-suggestions-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .load-btn { padding: 8px 12px; border: 0.5px solid #2563eb; background: #eff6ff; color: #2563eb; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; margin-top: 8px; }
+        .load-btn:hover { background: #dbeafe; }
+        .load-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .language-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
         .language-btn { padding: 6px 12px; border: 0.5px solid #d1d5db; background: white; color: #1f2937; cursor: pointer; font-size: 12px; font-weight: 500; border-radius: 6px; }
         .language-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
@@ -35,17 +35,11 @@
         .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
         .progress-bar { height: 4px; background: #e5e7eb; }
         .progress-fill { height: 100%; background: #2563eb; transition: width 0.3s; }
-        .output-content { background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 6px; padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; color: #1f2937; white-space: pre-wrap; word-wrap: break-word; max-height: 600px; overflow-y: auto; }
+        .output-content { background: #f9fafb; border: 0.5px solid #e5e7eb; border-radius: 6px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; color: #1f2937; white-space: pre-wrap; word-wrap: break-word; max-height: 600px; overflow-y: auto; }
         .loading { text-align: center; padding: 40px; color: #6b7280; }
         .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .hidden { display: none !important; }
-        .setup-view { text-align: center; }
-        .setup-view h2 { font-size: 20px; margin-bottom: 12px; color: #1f2937; }
-        .setup-view p { color: #6b7280; margin-bottom: 20px; font-size: 14px; }
-        .setup-view input { max-width: 400px; margin-bottom: 12px; }
-        .setup-view button { min-width: 200px; }
-        .info-text { font-size: 12px; color: #9ca3af; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -54,8 +48,7 @@
             <h1>💼 Nábor.ai</h1>
         </div>
         <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
-        <div class="content" id="setupView"></div>
-        <div class="content hidden" id="formView"></div>
+        <div class="content" id="formView"></div>
         <div class="content hidden" id="outputView">
             <button class="btn-secondary" onclick="goBack()">← Zpět</button>
             <div class="output-content" id="output"></div>
@@ -63,7 +56,7 @@
     </div>
 
     <script>
-        let apiKey = null;
+        const apiKey = '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';
         const languages = ['Čeština', 'Angličtina', 'Němčina', 'Francouzština', 'Španělština'];
 
         const categories = [
@@ -79,19 +72,19 @@
             {
                 name: 'Popis pozice',
                 fields: [
-                    { key: 'duvod_otevreni', label: 'Důvod otevření', type: 'textarea', generatable: true },
-                    { key: 'napl_prace', label: 'Náplň práce', type: 'textarea', generatable: true },
-                    { key: 'klicove_vystupy', label: 'Klíčové výstupy', type: 'textarea', generatable: true },
-                    { key: 's_kym_bude', label: 'S kým bude pracovat', type: 'textarea', generatable: true },
-                    { key: 'systemy_nastroje', label: 'Systémy a nástroje', type: 'textarea', generatable: true }
+                    { key: 'duvod_otevreni', label: 'Důvod otevření', type: 'textarea', gen: true },
+                    { key: 'napl_prace', label: 'Náplň práce', type: 'textarea', gen: true },
+                    { key: 'klicove_vystupy', label: 'Klíčové výstupy', type: 'textarea', gen: true },
+                    { key: 's_kym_bude', label: 'S kým bude pracovat', type: 'textarea', gen: true },
+                    { key: 'systemy_nastroje', label: 'Systémy a nástroje', type: 'textarea', gen: true }
                 ]
             },
             {
                 name: 'Požadavky',
                 fields: [
                     { key: 'seniorita', label: 'Seniorita', type: 'text' },
-                    { key: 'must_have', label: 'Must-have', type: 'textarea', generatable: true },
-                    { key: 'nice_to_have', label: 'Nice-to-have', type: 'textarea', generatable: true },
+                    { key: 'must_have', label: 'Must-have', type: 'textarea', gen: true },
+                    { key: 'nice_to_have', label: 'Nice-to-have', type: 'textarea', gen: true },
                     { key: 'vzdelani', label: 'Vzdělání', type: 'textarea' },
                     { key: 'jazyky', label: 'Jazyky', type: 'languages' }
                 ]
@@ -108,8 +101,8 @@
             {
                 name: 'Ostatní',
                 fields: [
-                    { key: 'osobnostni_fit', label: 'Osobnostní fit', type: 'textarea', generatable: true },
-                    { key: 'co_nebude_fungovat', label: 'Co nebude fungovat', type: 'textarea', generatable: true },
+                    { key: 'osobnostni_fit', label: 'Osobnostní fit', type: 'textarea', gen: true },
+                    { key: 'co_nebude_fungovat', label: 'Co nebude fungovat', type: 'textarea', gen: true },
                     { key: 'kpi', label: 'KPI / úspěch', type: 'textarea' },
                     { key: 'priority_3m', label: 'Priority 3 měsíců', type: 'textarea' },
                     { key: 'benefity', label: 'Benefity', type: 'textarea' },
@@ -128,38 +121,12 @@
             });
         });
 
-        function showSetup() {
-            document.getElementById('setupView').innerHTML = `
-                <div class="setup-view">
-                    <h2>🔑 Zadej API key</h2>
-                    <p>Najdi na <a href="https://console.anthropic.com/t/keys" target="_blank">console.anthropic.com/t/keys</a></p>
-                    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="width: 100%; padding: 10px;">
-                    <br>
-                    <button class="btn-primary" onclick="setApiKey()">Pokračovat</button>
-                    <p class="info-text">Tvůj klíč se neukládá, jen se používá pro tuto relaci</p>
-                </div>
-            `;
-        }
-
-        function setApiKey() {
-            const key = document.getElementById('apiKeyInput').value.trim();
-            if (!key) {
-                alert('Vlož API key!');
-                return;
-            }
-            apiKey = key;
-            document.getElementById('setupView').classList.add('hidden');
-            document.getElementById('formView').classList.remove('hidden');
-            render();
-        }
-
         function render() {
             const cat = categories[currentStep];
             const progress = Math.round((currentStep + 1) / categories.length * 100);
             document.getElementById('progress').style.width = progress + '%';
 
-            let html = `<div class="category-title">📋 ${cat.name}</div>
-                       <div class="category-info">Kategorie ${currentStep + 1}/${categories.length}</div>`;
+            let html = `<div class="category-title">📋 ${cat.name}</div><div class="category-info">Kategorie ${currentStep + 1}/${categories.length}</div>`;
 
             cat.fields.forEach(field => {
                 html += `<div class="form-group"><label class="form-label">${field.label}</label>`;
@@ -168,8 +135,8 @@
                     html += `<input type="text" id="${field.key}" value="${formData[field.key]}" placeholder="Vyplň...">`;
                 } else if (field.type === 'textarea') {
                     html += `<textarea id="${field.key}" placeholder="Vyplň...">${formData[field.key]}</textarea>`;
-                    if (field.generatable && formData.pozice) {
-                        html += `<button type="button" class="load-suggestions-btn" onclick="loadSuggestions('${field.key}', '${field.label.replace(/'/g, "\\'")}')" ${!apiKey ? 'disabled' : ''}>💡 Vygenerovat návrhy</button>`;
+                    if (field.gen && formData.pozice) {
+                        html += `<button type="button" class="load-btn" onclick="loadSuggestions('${field.key}', '${field.label.replace(/'/g, "\\'")}')" ${!apiKey ? 'disabled' : ''}>💡 Vygenerovat</button>`;
                         html += `<div id="suggestions-${field.key}" class="suggestions"></div>`;
                     }
                 } else if (field.type === 'languages') {
@@ -204,7 +171,7 @@
 
         async function loadSuggestions(fieldKey, fieldLabel) {
             if (!formData.pozice) {
-                alert('Nejdřív vyplň "Pozice"!');
+                alert('Vyplň Pozici!');
                 return;
             }
 
@@ -229,16 +196,14 @@
 Vrať POUZE seznam - každý návrh na novém řádku, bez čísel, bez "-", jen samotný text.
 
 Příklad:
-Návrh číslo 1
-Návrh číslo 2
-Návrh číslo 3`
+Návrh 1
+Návrh 2
+Návrh 3`
                         }]
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`Error: ${response.status}`);
 
                 const data = await response.json();
                 if (data.content && data.content[0]) {
@@ -248,17 +213,16 @@ Návrh číslo 3`
                         .filter(s => s.length > 0)
                         .slice(0, 3);
 
-                    const suggestionsDiv = document.getElementById(`suggestions-${fieldKey}`);
-                    suggestionsDiv.innerHTML = suggestions
+                    const div = document.getElementById(`suggestions-${fieldKey}`);
+                    div.innerHTML = suggestions
                         .map(s => `<button type="button" class="suggestion-btn" onclick="setSuggestion('${fieldKey}', '${s.replace(/'/g, "\\'")}')">${s}</button>`)
                         .join('');
                 }
             } catch (error) {
-                console.error('Chyba:', error);
                 alert(`Chyba: ${error.message}`);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '💡 Vygenerovat návrhy';
+                btn.textContent = '💡 Vygenerovat';
             }
         }
 
@@ -274,7 +238,7 @@ Návrh číslo 3`
 
         function next() { if (currentStep < categories.length - 1) currentStep++; render(); }
         function prev() { if (currentStep > 0) currentStep--; render(); }
-        function goBack() { document.getElementById('formView').classList.add('hidden'); document.getElementById('outputView').classList.add('hidden'); currentStep = 0; render(); document.getElementById('formView').classList.remove('hidden'); }
+        function goBack() { document.getElementById('formView').classList.remove('hidden'); document.getElementById('outputView').classList.add('hidden'); }
 
         async function generate() {
             document.getElementById('formView').classList.add('hidden');
@@ -344,7 +308,7 @@ ${data}`
             }
         }
 
-        showSetup();
+        render();
     </script>
 </body>
 </html>
